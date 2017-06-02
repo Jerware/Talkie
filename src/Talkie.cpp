@@ -2,8 +2,13 @@
 // Copyright 2011 Peter Knight
 // This code is released under GPLv2 license.
 
+
 #if (ARDUINO >= 100)
 #include "Arduino.h"
+#elif (PARTICLE)
+#include "Arduino.h"
+#include "application.h"
+#include "SparkIntervalTimer.h"
 #else
 #include <avr/io.h>
 #include "WProgram.h"
@@ -111,7 +116,7 @@ const uint8_t * Talkie::say_remove() {
 int8_t Talkie::sayQ(const uint8_t * addr) {
 	if (!setup) {
 		// Auto-setup.
-		// 
+		//
 		// Enable the speech system whenever say() is called.
 #if defined(__AVR__)
 #if F_CPU != 16000000L
@@ -126,10 +131,10 @@ int8_t Talkie::sayQ(const uint8_t * addr) {
 		TCCR2A = _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
 		TCCR2B = _BV(CS20);
 		TIMSK2 = 0;
-		
+
 		// Unfortunately we can't calculate the next sample every PWM cycle
 		// as the routine is too slow. So use Timer 1 to trigger that.
-		
+
 		// Timer 1 set up as a 8000Hz sample interrupt
 		TCCR1A = 0;
 		TCCR1B = _BV(WGM12) | _BV(CS10);
@@ -138,9 +143,13 @@ int8_t Talkie::sayQ(const uint8_t * addr) {
 		TIMSK1 = _BV(OCIE1A);
 #define ISR_RATIO (25000/ (F_CPU / FS) )
 #elif defined(__arm__) && defined(CORE_TEENSY)
-#define ISR(f) void f(void)
+		#define ISR(f) void f(void)
 		IntervalTimer *t = new IntervalTimer();
 		t->begin(timerInterrupt, 1000000.0f / (float)FS);
+#elif defined(PARTICLE)
+		#define ISR(f) void f(void)
+		IntervalTimer t;
+		t.begin(timerInterrupt, 1000000.0f / (float)FS, uSec);
 #define ISR_RATIO (25000/ (1000000.0f / (float)FS) )
 #endif
 		isrTalkptr = this;
@@ -188,15 +197,17 @@ static void timerInterrupt() {
 #if defined(__AVR__)
 	OCR2B = nextPwm;
 	sei();
-#elif defined(__arm__) && defined(CORE_TEENSY)
+#elif defined(__arm__) && defined(CORE_TEENSY) || defined(PARTICLE)
 #if defined(__MKL26Z64__)
 	analogWrite(A12, nextPwm);
 #elif defined(__MK20DX128__) || defined(__MK20DX256__)
 	analogWrite(A14, nextPwm);
 #elif defined(__MK64FX512__) || defined(__MK66FX1M0__)
 	analogWrite(A21, nextPwm);
-#else 
-	#error "Unknown Teensy"	
+#elif defined(PARTICLE)
+	analogWrite(DAC, nextPwm);
+#else
+	#error "Unknown Teensy"
 #endif
 #endif
 	if (synthPeriod) {
@@ -279,11 +290,11 @@ static void sayisr() {
 		synthK8 = 0;
 		synthK9 = 0;
 		synthK10 = 0;
-		
+
 		// Going Non Active :: START the sound on say_remove() address
 		if ( o->setPtr(o->say_remove()) ) nextData=ISR_RATIO;	// This tracks the timing of the call to sayisr() :: Force nextData next timerInterrupt()
 		else	nextData=0;
-		
+
 	} else {
 		synthEnergy = tmsEnergy[energy];
 		repeat = o->getBits(1);
@@ -312,7 +323,7 @@ static void sayisr() {
 >> When sayQ brings new addr - if not .active() then start it { 'current code' } return (free);
 	if ( active() && free ) :: then ADD it :: return (free);
 	else do a say() type while block until it can be added, then return
-	
+
 >> when timerInterrupt() completes :: if say_buffer_queued then start REMOVE
 	setPtr( say_remove );
 
