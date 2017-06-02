@@ -4,18 +4,22 @@
 
 
 #if (ARDUINO >= 100)
-#include "Arduino.h"
+	#include "Arduino.h"
 #elif (PARTICLE)
-#include "Arduino.h"
-#include "application.h"
-#include "SparkIntervalTimer.h"
+	#include "Arduino.h"
+	#include "application.h"
+	#include "SparkIntervalTimer.h"
 #else
-#include <avr/io.h>
-#include "WProgram.h"
+	#include <avr/io.h>
+	#include "WProgram.h"
 #endif
 #include "Talkie.h"
 
 #define FS 8000 // Speech engine sample rate
+
+#if defined(PARTICLE)
+	IntervalTimer t;
+#endif
 
 static void timerInterrupt();
 static uint8_t synthPeriod;
@@ -50,9 +54,12 @@ bool Talkie::setPtr(const uint8_t * addr) {
 	else return(false);
 }
 uint8_t Talkie::active() {
+	#if defined(PARTICLE)
+		Particle.process();
+	#endif
 	yield();
 	if ( 0 == ptrAddr ) return 0;	// Nothing playing!
-	else return( 1 + (SAY_BUFFER_SIZE - free) );	// 1 active plus X in queue
+	return( 1 + (SAY_BUFFER_SIZE - free) );	// 1 active plus X in queue
 }	// active()
 
 // The ROMs used with the TI speech were serial, not byte wide.
@@ -67,6 +74,7 @@ uint8_t Talkie::rev(uint8_t a) {
 	// 01234567
 	return a;
 }
+
 uint8_t Talkie::getBits(uint8_t bits) {
 	uint8_t value;
 	uint16_t data;
@@ -148,7 +156,6 @@ int8_t Talkie::sayQ(const uint8_t * addr) {
 		t->begin(timerInterrupt, 1000000.0f / (float)FS);
 #elif defined(PARTICLE)
 		#define ISR(f) void f(void)
-		IntervalTimer t;
 		t.begin(timerInterrupt, 1000000.0f / (float)FS, uSec);
 #define ISR_RATIO (25000/ (1000000.0f / (float)FS) )
 #endif
