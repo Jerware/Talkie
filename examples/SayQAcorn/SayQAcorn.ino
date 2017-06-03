@@ -10,6 +10,10 @@
 // Due to the large vocabulary, this file takes up 16Kbytes of flash.
 // To save space, just copy and paste the words you need.
 
+#if defined(PARTICLE)
+  int LED_BUILTIN = D7;
+#endif
+
 #define ACORN
 #include <Talkie.h>
 
@@ -40,7 +44,12 @@ const uint8_t * indexArray [] {spTHIS, spIS, spNO, spNEGATIVE, spPARAMETER, spPR
 
 Talkie voice;
 
-#define qBlink() (digitalWriteFast(LED_BUILTIN, !digitalReadFast(LED_BUILTIN) ))  // This toggles the Teensy 3.2 Builtin LED pin 13
+#if defined(PARTICLE)
+  #define qBlink() (digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN) ))  // This toggles the Photon Builtin LED pin D7
+#else
+  #define qBlink() (digitalWriteFast(LED_BUILTIN, !digitalReadFast(LED_BUILTIN) ))  // This toggles the Teensy 3.2 Builtin LED pin 13
+#endif
+
 void setup() {
   while (!Serial && 5000 > millis());
   Serial.println("\nSetting up");
@@ -90,4 +99,3 @@ void arrayInterface (int * wordArray, int wordArraySize) {
   Serial.print( ":: Array Added: Active=" );
   Serial.println( voice.active() );
 }
-

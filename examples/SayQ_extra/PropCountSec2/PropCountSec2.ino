@@ -58,7 +58,9 @@ void setup() {
   digitalWrite(5, 1);//Enable Amplified.
   while (!Serial && 5000 > millis());
   Serial.println("Setting up");
-  analogReference(INTERNAL);  // drop volume level
+  #ifndef PARTICLE
+    analogReference(INTERNAL);  // drop volume level
+  #endif
   for ( int jj = 0; jj < 3; jj++ )
     for ( int ii = 0; ii < SP_MAX; ii++ )
       Serial.println( voice.sayQ(spSpeak[ii]) );
@@ -87,5 +89,3 @@ void loop() {
   busyloops++;
   // delay (1001);  // Uncomment to see that it runs on interrupt and catches the next second when you let it
 }
-
-
